@@ -1,71 +1,100 @@
 #include<systemc.h>
 
-SC_MODULE(ALU_module){
+SC_MODULE(ALU_module) {
 	//inputs
 	sc_in<bool> clk;
-	sc_in<sc_uint<3> > op_sel;
 	sc_in<bool> reset;
-	sc_in<sc_uint<32> > data1;
-	sc_in<sc_uint<32> > data2;
+
+	sc_in< sc_bv<4> > op_sel;
+	sc_in< sc_uint<32> > d1,d2;
 
 	//outputs
-	sc_out<sc_uint<32> > acc;
-	sc_out<sc_uint<8> > stat;
+	sc_out< sc_uint<32> > acc;
+	sc_out< sc_bv<8> > stat;
 
 	//result variable
-	sc_uint<32> result;
+	sc_uint<32> data1,data2;
+	sc_bv<8> status;
+	sc_uint<33> result;
 
-	SC_CTOR(ALU_module){
-		SC_METHOD(processing);
-		sensitive<< clk;
-	}
 
-	void processing()
-	{
-		if(reset.read()==true)
-		{
-			result = 0;
-			acc = 0;
-			stat = 0;
+	void processing() {
+		data1=d1.read();
+		data2=d2.read();
+		sc_uint<4> opsel = op_sel.read();
+
+		if (reset.read() == true) {
+			cout<<"\nResetting........\n";
+			result=0;
+			status=0;
+			acc.write(0);
+			stat.write(0);
+
 		}
 		else {
-
-			switch(op_sel.read()){
+			switch (opsel) {
 
 			case 0:
-				result = (data1.read() & data2.read());
+				cout << "\nCase0: Bitwise and";
+				result = (data1 & data2);
 				break;
 			case 1:
-				result = (data1.read() | data2.read());
+				cout << "\nCase1: Bitwise or";
+				result = (data1 | data2);
 				break;
 			case 2:
-				result = (data1.read() ^ data2.read());
+				cout << "\nCase2: Bitwise xor";
+				result = (data1 ^ data2);
 				break;
 			case 3:
-				result = data1.read() >> 1;
+				cout << "\nCase3: Bitwise Right shift";
+				result = data1 >> 1;
 			case 4:
-				result = data1.read() << 1;
+				cout << "\nCase4: Bitwise Left shift";
+				result = data1 << 1;
 				break;
 			case 5:
-				result = (data1.read() + data2.read());
+				cout << "\nCase5: Addition";
+				result = (data1 + data2);
 				break;
 			case 6:
-				result = (data1.read() * data2.read());
+				cout << "\nCase6: Multiplication";
+				result = (data1 * data2);
 				break;
-			case 7:
-				result = (data1.read() / data2.read());
+			case 12:
+				cout << "\nCase12: Division";
+				result = (data1 / data2);
+				break;
+
+			default:
+				cout << "Exception";
 				break;
 			}
 
-			cout<<"\n";
-			cout<< "----------starting Time :"<< sc_time_stamp() << "\n";
 			acc.write(result);
-			stat.write(stat);
-			cout<<"Result:" << acc<<"\n";
-			cout<<"Operation:"<< op_sel <<"\n";
-			cout<<"Data1:"<<data1<<"\n";
-			cout<<"Data2:"<<data2<<"\n";
-			cout<<"status flag:"<<stat<<"\n";
+			//to get the status flag
+
+			status[0] = ((result == 0) ? 1 : 0);   	//zero flag
+			status[1] = ((result[32] == 1) ? 1 : 0); //carry flag
+			status[2] = ((result[31] == 1) ? 1 : 0); //sign flag
+			status[3] =(((data1[31] == 0) && (data2[31] == 0) && (result[31] == 1)) ?1 : 0); //overflow flag
+
+			status[4]=(((data1[31]==1)&&(data2[31]==1)&&(result[31]==0))?1:0); //underflow flag
+
+			cout << "\n";
+			cout << "----------Starting Time :" << sc_time_stamp() << "\n";
+			stat.write(status);
+			cout << "reset:" << reset << "\n";
+			cout << "Result:" << acc << "\n";
+			cout << "Operation:" << op_sel << "\n";
+			cout << "Data1:" << data1 << "\n";
+			cout << "Data2:" << data2 << "\n";
+			cout << "status flag:" << stat << "\n";
+		}
 	}
+
+	SC_CTOR(ALU_module) {
+		SC_METHOD(processing);
+		sensitive << clk.neg();
 	}
 };
